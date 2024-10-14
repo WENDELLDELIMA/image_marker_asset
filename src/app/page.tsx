@@ -1,101 +1,186 @@
-import Image from "next/image";
+"use client"; // Marcar como Client Component
+
+import { useState, useRef, useEffect } from "react";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [markers, setMarkers] = useState([]); // Armazena os marcadores
+  const [newMarker, setNewMarker] = useState(null); // Armazena o ponto antes de ser nomeado
+  const [pointName, setPointName] = useState(""); // Armazena o nome do ponto
+  const [hoveredMarker, setHoveredMarker] = useState(null); // Armazena o marcador que está sendo "hovered"
+  const [showAllTooltips, setShowAllTooltips] = useState(false); // Controle para exibir ou ocultar todos os tooltips
+  const imgRef = useRef(null); // Referência para a imagem
+  const [imgDimensions, setImgDimensions] = useState({ width: 0, height: 0 }); // Dimensões da imagem
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  // Função para capturar o clique na imagem e adicionar um marcador temporário
+  const handleImageClick = (event) => {
+    const img = imgRef.current;
+    const rect = img.getBoundingClientRect(); // Dimensões visíveis da imagem
+    const x = event.clientX - rect.left; // Coordenada X em relação à imagem
+    const y = event.clientY - rect.top; // Coordenada Y em relação à imagem
+
+    // Armazena o novo marcador temporário com coordenadas percentuais
+    setNewMarker({ x, y, width: rect.width, height: rect.height });
+  };
+
+  // Adicionar o marcador com nome à lista
+  const addMarker = () => {
+    if (newMarker && pointName.trim() !== "") {
+      setMarkers([...markers, { ...newMarker, name: pointName }]); // Adiciona o nome ao ponto
+      setNewMarker(null); // Limpa o marcador temporário
+      setPointName(""); // Limpa o nome do ponto
+    } else {
+      alert(
+        "Clique na imagem para marcar um ponto e insira um nome para o ponto."
+      );
+    }
+  };
+
+  // Atualizar as dimensões da imagem quando a janela for redimensionada
+  const updateImageDimensions = () => {
+    if (imgRef.current) {
+      const rect = imgRef.current.getBoundingClientRect(); // Dimensões visíveis atuais da imagem
+      setImgDimensions({ width: rect.width, height: rect.height });
+    }
+  };
+
+  useEffect(() => {
+    // Atualiza as dimensões da imagem ao carregar a página e ao redimensionar a janela
+    window.addEventListener("resize", updateImageDimensions);
+    updateImageDimensions(); // Chama a função ao carregar
+    return () => window.removeEventListener("resize", updateImageDimensions); // Limpa o evento ao desmontar
+  }, []);
+
+  // Função para alternar a visibilidade de todos os tooltips
+  const toggleTooltips = () => {
+    setShowAllTooltips(!showAllTooltips);
+  };
+
+  // Renderizar os marcadores com base nas novas dimensões da imagem
+  const renderMarkers = () => {
+    if (!imgDimensions.width || !imgDimensions.height) return null; // Se as dimensões não forem definidas, não renderiza
+
+    return markers.map((marker, index) => {
+      // Calcula a nova posição proporcional ao tamanho da imagem redimensionada
+      const newX = (marker.x / marker.width) * imgDimensions.width;
+      const newY = (marker.y / marker.height) * imgDimensions.height;
+
+      return (
+        <div
+          key={index}
+          style={{
+            position: "absolute",
+            top: `${newY}px`,
+            left: `${newX}px`,
+            backgroundColor: "red",
+            width: "10px",
+            height: "10px",
+            borderRadius: "50%",
+            transform: "translate(-50%, -50%)", // Centraliza o marcador
+            cursor: "pointer",
+          }}
+          onMouseEnter={() => setHoveredMarker(marker)} // Exibe o tooltip ao passar o mouse
+          onMouseLeave={() => setHoveredMarker(null)} // Remove o tooltip ao sair do ponto
+        />
+      );
+    });
+  };
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <h1>Marcar pontos na imagem</h1>
+
+      <div style={{ marginBottom: "10px" }}>
+        <input
+          type="text"
+          placeholder="Nome do ponto"
+          value={pointName}
+          onChange={(e) => setPointName(e.target.value)} // Atualiza o nome do ponto
+          style={{ padding: "5px", width: "200px" }}
+        />
+        <button
+          onClick={addMarker}
+          style={{ padding: "5px", marginLeft: "10px" }}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Adicionar Ponto
+        </button>
+        <button
+          onClick={toggleTooltips}
+          style={{ padding: "5px", marginLeft: "10px" }}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          {showAllTooltips ? "Ocultar Tooltips" : "Exibir Tooltips"}
+        </button>
+      </div>
+
+      <div style={{ position: "relative", display: "inline-block" }}>
+        {/* Imagem onde os marcadores serão adicionados */}
+        <img
+          ref={imgRef} // Referência para a imagem
+          src="https://firebasestorage.googleapis.com/v0/b/simpplify-15797.appspot.com/o/TAG%2Ffba96d45-fce4-4500-a6bf-340d8b1353be.jpeg?alt=media&token=fba96d45-fce4-4500-a6bf-340d8b1353be" // Substitua pela URL da sua imagem
+          alt="Imagem para marcação"
+          style={{ maxWidth: "100%", height: "auto" }} // A imagem vai ajustar automaticamente com a tela
+          onClick={handleImageClick} // Função para capturar o clique
+        />
+        {renderMarkers()} {/* Renderiza os marcadores */}
+        {/* Mostra um ponto temporário antes de ser nomeado */}
+        {newMarker && (
+          <div
+            style={{
+              position: "absolute",
+              top: `${
+                (newMarker.y / newMarker.height) * imgDimensions.height
+              }px`,
+              left: `${
+                (newMarker.x / newMarker.width) * imgDimensions.width
+              }px`,
+              backgroundColor: "blue",
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              transform: "translate(-50%, -50%)", // Centraliza o marcador
+            }}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        )}
+        {/* Tooltip para mostrar o nome do ponto ao passar o mouse ou ao exibir todos */}
+        {markers.map((marker, index) => {
+          const newX = (marker.x / marker.width) * imgDimensions.width;
+          const newY = (marker.y / marker.height) * imgDimensions.height;
+
+          if (hoveredMarker === marker || showAllTooltips) {
+            return (
+              <div
+                key={`tooltip-${index}`}
+                style={{
+                  position: "absolute",
+                  top: `${newY}px`,
+                  left: `${newX}px`,
+                  backgroundColor: "black",
+                  color: "white",
+                  padding: "5px",
+                  borderRadius: "5px",
+                  transform: "translate(-50%, -120%)", // Posiciona o tooltip acima do ponto
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {marker.name}
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+
+      {/* Lista dos pontos criados */}
+      <div style={{ marginTop: "20px" }}>
+        <h2>Pontos Marcados:</h2>
+        <ul>
+          {markers.map((marker, index) => (
+            <li key={index}>
+              {index + 1}. {marker.name} (X: {marker.x.toFixed(2)}, Y:{" "}
+              {marker.y.toFixed(2)})
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
